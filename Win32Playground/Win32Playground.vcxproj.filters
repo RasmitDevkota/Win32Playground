@@ -45,5 +45,8 @@
     <Image Include="Win32Playground.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="C:\Users\Alien\OneDrive\Pictures\Discord\izone.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

@@ -72,8 +72,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\include\</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\lib\</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\include</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\lib</LibraryPath>
     <ReferencePath>$(VC_ReferencesPath_x86);$(ProjectDir)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -156,6 +156,7 @@
     <ResourceCompile Include="Win32Playground.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="C:\Users\Alien\OneDrive\Pictures\Discord\izone.png" />
     <Image Include="small.ico" />
     <Image Include="Win32Playground.ico" />
   </ItemGroup>
