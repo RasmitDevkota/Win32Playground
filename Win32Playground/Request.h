@@ -1,3 +1,4 @@
+#include "RequestInfo.h"
 #include <string>
 
 struct Request {
