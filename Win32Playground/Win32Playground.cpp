@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include "Request.h"
 #include "framework.h"
 #include "Win32Playground.h"
 #include <iostream>
