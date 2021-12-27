@@ -156,7 +156,6 @@
     <ResourceCompile Include="Win32Playground.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="C:\Users\Alien\OneDrive\Pictures\Discord\izone.png" />
     <Image Include="small.ico" />
     <Image Include="Win32Playground.ico" />
   </ItemGroup>

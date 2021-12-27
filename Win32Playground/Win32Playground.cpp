@@ -8,6 +8,7 @@
 #include <regex>
 #include "framework.h"
 #include "Win32Playground.h"
+#include <iostream>
 
 #ifndef UNICODE
 #define UNICODE
@@ -45,13 +46,11 @@ HWND searchButton;
 HWND pageContent;
 
 CURL* curl = curl_easy_init();
-CURLcode setHttps = curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
 
 int historyDepth = 0;
 std::vector<std::string> pageHistory;
 
-WCHAR* url[2048] = {};
-std::string currentUrl;
+std::string url;
 
 std::string pageData;
 
@@ -92,6 +91,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	{
 		return 0;
 	}
+
+	SetWindowLong(window, GWL_STYLE, 0);
 
 	ShowWindow(window, nCmdShow);
 	
@@ -218,8 +219,8 @@ size_t requestData(char* buffer, size_t itemSize, size_t nItems, void* empty) {
 	return nBytes;
 }
 
-void processResult(CURLcode result) {
-	println(pageData);
+CURLcode processResult(CURLcode result) {
+	// println(pageData);
 
 	if (result == CURLE_OK) {
 		println("successfully did curl stuff");
@@ -230,19 +231,17 @@ void processResult(CURLcode result) {
 		HFONT font = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
 		HFONT oldHFont = (HFONT) SelectObject(hdc, font);
 
-		if (historyDepth == 0) {
+		if (historyDepth == 1) {
 			CreateContent(window);
 		}
 
 		SetWindowTextA(pageContent, pageData.c_str());
-
-		historyDepth++;
-		pageHistory.push_back(((std::string*)url)->c_str());
-	}
-	else {
+	} else {
 		println("unsuccessfully did curl stuff");
 		println(curl_easy_strerror(result));
 	}
+
+	return result;
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -278,7 +277,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			CreateUrlBar(hwnd, hBorderC, vBorderA + 0.1L * (vBorderB - vBorderA), 0.85 * width, 0.8L * (vBorderB - vBorderA));
 			CreateSearchButton(hwnd, hBorderD, vBorderA + 0.1L * (vBorderB - vBorderA), 0.05L * width, 0.8L * (vBorderB - vBorderA));
 
-			pageHistory.push_back("Type a URL");
+			// pageHistory.push_back('Type a URL');
+
+			curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
 
 			EndPaint(hwnd, &ps);
 
@@ -323,65 +324,77 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			if (wParam == 831 || wParam == 312) {
 				if (wParam == 312) {
 					if (historyDepth > 0) {
-						println("Go back!");
+						println("\n----- New Message: Go back! -----");
 
-						curl_easy_setopt(curl, CURLOPT_URL, pageHistory[--historyDepth]);
+						historyDepth = historyDepth - 1; // Bug: Back button needs to be pressed twice to go back (is historyDepth being incremented twice somewhere?)
 
-						println(pageHistory[historyDepth]);
-					}
-					else {
+						int targetUrlLength = pageHistory[historyDepth].length();
+
+						WCHAR targetUrl[2048];
+
+						for (int i = 0; i < targetUrlLength; i++) {
+							targetUrl[i] = pageHistory[historyDepth][i];
+						}
+
+						SetWindowTextA(urlBar, pageHistory[historyDepth].c_str());
+
+						OutputDebugStringA("Going back to '");
+						OutputDebugStringA(pageHistory[historyDepth].c_str());
+						OutputDebugStringA("'\n");
+
+					} else {
 						println("Reached end of browsing history!");
 
 						return 0;
 					}
+				} else {
+					println("\n----- New Message: Search! -----");
+
+					historyDepth = historyDepth + 1;
 				}
-				else {
 
-					GetWindowTextA(urlBar, (LPSTR) url, 2048);
+				WCHAR tempUrl[2048];
 
-					std::regex urlRegex(R"(^((http|https):\/\/([^/ :]+))?:?([^/ ]*)\.(\/?[^ #?]*)\\?([^ #]*)#?([^ ]*)$)", std::regex_constants::icase);
+				int urlLength = GetWindowTextW(urlBar, (LPWSTR) tempUrl, 2048) + 1;
 
-					if (!std::regex_match(((std::string*) url)->c_str(), urlRegex)) {
-						println("query search");
+				OutputDebugStringW(L"Url: '");
+				OutputDebugStringW(tempUrl);
+				OutputDebugStringW(L"'\n");
 
-						std::string queryUrl;
+				url.clear();
 
-						queryUrl = "https://www.bing.com/search?q=";
-						queryUrl.append(((std::string*) url)->c_str());
-
-						curl_easy_setopt(curl, CURLOPT_URL, queryUrl.c_str());
-
-						println(queryUrl);
-
-						// SetWindowTextA(urlBar, queryUrl.c_str());
-						// GetWindowTextA(urlBar, (LPSTR) queryUrl.c_str(), 2048);
-						// 
-						// println(queryUrl);
-
-						currentUrl.clear(); // ((std::string*) &currentUrl)->clear();
-						currentUrl.append(queryUrl);
-					}
-					else {
-						println("url search");
-
-						curl_easy_setopt(curl, CURLOPT_URL, url);
-
-						currentUrl.clear();
-						currentUrl.append(*(std::string*) url);
-					}
+				for (int i = 0; i < urlLength; i++) {
+					url += tempUrl[i];
 				}
+
+				println(url);
+
+				std::string urlArchive = url;
+
+				pageHistory.push_back(urlArchive);
+
+				curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
 				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, requestData);
 				curl_easy_setopt(curl, CURLOPT_WRITEDATA, &pageData);
 
-				((std::string*) &pageData)->clear();
+				pageData.clear();
 
-				processResult(curl_easy_perform(curl));
-			}
-			else if (wParam == 690561) {
+				if (processResult(curl_easy_perform(curl)) != CURLE_OK) {
+					if (wParam == 312) {
+						println("Failed to go back!");
+
+						historyDepth++;
+					} else {
+						println("Failed to navigate!");
+
+						historyDepth--;
+					}
+				}
+			} else if (wParam == 690561) {
 				println("Refresh the page!");
 
-				((std::string*) &pageData)->clear();
+				pageData.clear();
 
 				processResult(curl_easy_perform(curl));
 			}
