@@ -1,15 +1,14 @@
 ﻿#include "windows.h"
 #include "Richedit.h"
+#include "WindowsX.h"
 #include "curl/curl.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
 #include <vector>
 #include <regex>
-#include "Request.h"
 #include "framework.h"
 #include "Win32Playground.h"
-#include <iostream>
 
 #ifndef UNICODE
 #define UNICODE
@@ -23,14 +22,23 @@ RECT cRect;
 LONG width;
 LONG height;
 
-LONG vBorderA;
-LONG vBorderB;
-LONG vBorderC;
+LONG vBorderControlsArea;
+LONG vBorderExtrasArea;
+LONG vBorderMainContent;
 
-LONG hBorderA;
-LONG hBorderB;
-LONG hBorderC;
-LONG hBorderD;
+LONG vBorderControls;
+
+LONG hBorderBackButton;
+LONG hBorderForwardButton;
+LONG hBorderRefreshButton;
+LONG hBorderUrlBar;
+LONG hBorderSearchButton;
+
+LONG hBorderMinimize;
+LONG hBorderMaximize;
+LONG hBorderDestroyW;
+
+bool maximized = false;
 
 RECT newTab;
 RECT tabsAreaRect;
@@ -40,11 +48,17 @@ RECT mainContentRect;
 
 HWND window;
 
+HWND minimizeButton;
+HWND maximizeButton;
+HWND destroyWButton;
 HWND backButton;
+HWND forwardButton;
 HWND refreshButton;
 HWND urlBar;
 HWND searchButton;
 HWND pageContent;
+
+std::vector<HWND> children { backButton, refreshButton, urlBar, searchButton, pageContent };
 
 CURL* curl = curl_easy_init();
 
@@ -55,34 +69,74 @@ std::string url;
 
 std::string pageData;
 
-void print(std::string stringToPrint) {
-	OutputDebugStringA(stringToPrint.c_str());
+template<typename... Args>
+void println(std::string string, Args ...args)
+{
+	char output[2048];
+
+	snprintf(output, 2048, string.c_str(), args...);
+
+	OutputDebugStringA(output);
 }
 
-void println(std::string stringToPrint) {
-	OutputDebugStringA(stringToPrint.c_str());
+template<typename... Args>
+void print(const char* string, Args ...args)
+{
+	char output[2048];
+
+	snprintf(output, 2048, string, args...);
+
+	OutputDebugStringA(output);
+}
+
+template<typename... Args>
+void print(std::string string, Args ...args)
+{
+	char output[2048];
+
+	snprintf(output, 2048, string.c_str(), args...);
+
+	OutputDebugStringA(output);
+	OutputDebugStringA("\n");
+}
+
+template<typename... Args>
+void println(const char* string, Args ...args)
+{
+	char output[2048];
+
+	snprintf(output, 2048, string, args...);
+
+	OutputDebugStringA(output);
 	OutputDebugStringA("\n");
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+HWND CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height);
+HWND CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height);
+HWND CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height);
+HWND CreateBackButton(HWND hwndOwner, int x, int y, int width, int height);
+HWND CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height);
 HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height);
 HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height);
+HWND CreateContent(HWND hwndOwner);
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
-	const wchar_t CLASS_NAME[] = L"OneE Window Class";
+	const wchar_t CLASS_NAME[] = L"Light Window Class";
 
 	WNDCLASS wc = { };
 
 	wc.lpfnWndProc = WindowProc;
 	wc.hInstance = hInstance;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpszClassName = CLASS_NAME;
 
 	RegisterClass(&wc);
 
 	window = CreateWindow(
 		CLASS_NAME,
-		L"OneE",
+		L"Light",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		NULL, NULL, hInstance, NULL
@@ -107,10 +161,137 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	return 0;
 }
 
-HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height) {
+HWND CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light Minimize Button";
+
+	WNDCLASS wc = { };
+
+	wc.lpszClassName = CLASS_NAME;
+
+	RegisterClass(&wc);
+
+	minimizeButton = CreateWindow(
+		L"BUTTON",
+		L"-",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT | BS_CENTER,
+		x, y, width, height,
+		hwndOwner, (HMENU) 69, NULL, NULL
+	);
+
+	return minimizeButton;
+}
+
+HWND CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light Maximize Button";
+
+	WNDCLASS wc = { };
+
+	wc.lpszClassName = CLASS_NAME;
+
+	RegisterClass(&wc);
+
+	maximizeButton = CreateWindow(
+		L"BUTTON",
+		L"☐",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT | BS_CENTER,
+		x, y, width, height,
+		hwndOwner, (HMENU) 70, NULL, NULL
+	);
+
+	return maximizeButton;
+}
+
+HWND CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light DestroyW Button";
+
+	WNDCLASS wc = { };
+
+	wc.lpszClassName = CLASS_NAME;
+
+	RegisterClass(&wc);
+
+	destroyWButton = CreateWindow(
+		L"BUTTON",
+		L"X",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT | BS_CENTER,
+		x, y, width, height,
+		hwndOwner, (HMENU) 71, NULL, NULL
+	);
+
+	return destroyWButton;
+}
+
+HWND CreateBackButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light Page Back Button";
+
+	WNDCLASS wc = { };
+
+	wc.lpszClassName = CLASS_NAME;
+
+	RegisterClass(&wc);
+
+	backButton = CreateWindow(
+		L"BUTTON",
+		L"<",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
+		x, y, width, height,
+		hwndOwner, (HMENU) 312, NULL, NULL
+	);
+
+	return backButton;
+}
+
+HWND CreateForwardButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light Page Forward Button";
+
+	WNDCLASS wc = { };
+
+	wc.lpszClassName = CLASS_NAME;
+
+	RegisterClass(&wc);
+
+	forwardButton = CreateWindow(
+		L"BUTTON",
+		L">",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
+		x, y, width, height,
+		hwndOwner, (HMENU) 624, NULL, NULL
+	);
+
+	return forwardButton;
+}
+
+HWND CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light Page Refresh Button";
+
+	WNDCLASS wc = { };
+
+	wc.lpszClassName = CLASS_NAME;
+
+	RegisterClass(&wc);
+
+	refreshButton = CreateWindow(
+		L"BUTTON",
+		L"↺",
+		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
+		x, y, width, height,
+		hwndOwner, (HMENU) 1662, NULL, NULL
+	);
+
+	return refreshButton;
+}
+
+HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height)
+{
 	LoadLibrary(TEXT("Msftedit.dll"));
 
-	const wchar_t CLASS_NAME[] = L"OneE URL RichEdit";
+	const wchar_t CLASS_NAME[] = L"Light URL RichEdit";
 
 	WNDCLASS wc = { };
 
@@ -124,14 +305,15 @@ HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height) {
 		L"Type a URL",
 		ES_MULTILINE | WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
 		x, y, width, height,
-		hwndOwner, (HMENU) 102, NULL, NULL
+		hwndOwner, (HMENU)102, NULL, NULL
 	);
 
 	return urlBar;
 }
 
-HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height) {
-	const wchar_t CLASS_NAME[] = L"OneE URL Submit Button";
+HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height)
+{
+	const wchar_t CLASS_NAME[] = L"Light URL Submit Button";
 
 	WNDCLASS wc = { };
 
@@ -150,48 +332,9 @@ HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height) {
 	return searchButton;
 }
 
-HWND CreateBackButton(HWND hwndOwner, int x, int y, int width, int height) {
-	const wchar_t CLASS_NAME[] = L"OneE Page Back Button";
-
-	WNDCLASS wc = { };
-
-	wc.lpszClassName = CLASS_NAME;
-
-	RegisterClass(&wc);
-
-	backButton = CreateWindow(
-		L"BUTTON",
-		L"<",
-		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
-		x, y, width, height,
-		hwndOwner, (HMENU) 312, NULL, NULL
-	);
-
-	return refreshButton;
-}
-
-HWND CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height) {
-	const wchar_t CLASS_NAME[] = L"OneE Page Refresh Button";
-
-	WNDCLASS wc = { };
-
-	wc.lpszClassName = CLASS_NAME;
-
-	RegisterClass(&wc);
-
-	refreshButton = CreateWindow(
-		L"BUTTON",
-		L"↺",
-		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
-		x, y, width, height,
-		hwndOwner, (HMENU) 690561, NULL, NULL
-	);
-
-	return refreshButton;
-}
-
-HWND CreateContent(HWND hwndOwner) {
-	const wchar_t CLASS_NAME[] = L"OneE Page Content";
+HWND CreateContent(HWND hwndOwner)
+{
+	const wchar_t CLASS_NAME[] = L"Light Page Content";
 
 	WNDCLASS wc = { };
 
@@ -203,14 +346,15 @@ HWND CreateContent(HWND hwndOwner) {
 		L"STATIC",
 		L"Enter a URL into the address bar and hit go to begin exploring the web!",
 		WS_VISIBLE | WS_CHILD | SS_LEFT,
-		width * 0.005L, vBorderC + height * 0.025L * (historyDepth + 1L), width * 0.995L, height * 0.995L,
+		width * 0.005L, vBorderMainContent + height * 0.025L * (historyDepth + 1L), width * 0.995L, height * 0.995L,
 		hwndOwner, (HMENU) 519, NULL, NULL
 	);
 
 	return pageContent;
 }
 
-size_t requestData(char* buffer, size_t itemSize, size_t nItems, void* empty) {
+size_t RequestData(char* buffer, size_t itemSize, size_t nItems, void* empty)
+{
 	size_t nBytes = itemSize * nItems;
 
 	((std::string*) &pageData)->append(buffer, nBytes);
@@ -220,10 +364,10 @@ size_t requestData(char* buffer, size_t itemSize, size_t nItems, void* empty) {
 	return nBytes;
 }
 
-CURLcode processResult(CURLcode result) {
-	// println(pageData);
-
-	if (result == CURLE_OK) {
+CURLcode ProcessResult(CURLcode result)
+{
+	if (result == CURLE_OK)
+	{
 		println("successfully did curl stuff");
 
 		SetTextColor(hdc, RGB(0, 0, 0));
@@ -232,12 +376,15 @@ CURLcode processResult(CURLcode result) {
 		HFONT font = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
 		HFONT oldHFont = (HFONT) SelectObject(hdc, font);
 
-		if (historyDepth == 1) {
+		if (historyDepth == 1)
+		{
 			CreateContent(window);
 		}
 
 		SetWindowTextA(pageContent, pageData.c_str());
-	} else {
+	}
+	else
+	{
 		println("unsuccessfully did curl stuff");
 		println(curl_easy_strerror(result));
 	}
@@ -249,36 +396,95 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
-		case WM_DESTROY: {
+		case WM_DESTROY:
+		{
 			PostQuitMessage(0);
 
 			curl_easy_cleanup(curl);
 
 			return 0;
 		}
-		case WM_CREATE: {
+		case WM_CREATE:
+		{
 			hdc = BeginPaint(hwnd, &ps);
 
-			GetClientRect(hwnd, &cRect);
+			GetWindowRect(hwnd, &cRect);
 
 			width = cRect.right - cRect.left;
 			height = cRect.bottom - cRect.top;
 
-			vBorderA = height * 0.05L;
-			vBorderB = vBorderA + height * 0.05L;
-			vBorderC = vBorderB + height * 0.04L;
+			vBorderControlsArea = 0 +
+				0.03L * height;
+			vBorderExtrasArea = vBorderControlsArea +
+				0.05L * height;
+			vBorderMainContent = vBorderExtrasArea +
+				0.04L * height;
 
-			hBorderA = 0.02L * width;
-			hBorderB = hBorderA + 0.02L * width;
-			hBorderC = hBorderB + 0.02L * width;
-			hBorderD = hBorderC + 0.85L * width;
+			vBorderControls = vBorderControlsArea +
+				0.1L * (vBorderExtrasArea - vBorderControlsArea);
 
-			CreateBackButton(hwnd, hBorderA, vBorderA + 0.1L * (vBorderB - vBorderA), 0.02L * width, 0.8L * (vBorderB - vBorderA));
-			CreateRefreshButton(hwnd, hBorderB, vBorderA + 0.1L * (vBorderB - vBorderA), 0.02L * width, 0.8L * (vBorderB - vBorderA));
-			CreateUrlBar(hwnd, hBorderC, vBorderA + 0.1L * (vBorderB - vBorderA), 0.85 * width, 0.8L * (vBorderB - vBorderA));
-			CreateSearchButton(hwnd, hBorderD, vBorderA + 0.1L * (vBorderB - vBorderA), 0.05L * width, 0.8L * (vBorderB - vBorderA));
+			hBorderBackButton = 0 +
+				0.02L * width;
+			hBorderForwardButton = hBorderBackButton +
+				0.02L * width;
+			hBorderRefreshButton = hBorderForwardButton +
+				0.02L * width;
+			hBorderUrlBar = hBorderRefreshButton +
+				0.02L * width;
+			hBorderSearchButton = hBorderUrlBar +
+				0.85L * width;
 
-			// pageHistory.push_back('Type a URL');
+			hBorderDestroyW = width - 
+				0.03L * width;
+			hBorderMaximize = hBorderDestroyW -
+				0.03L * width;
+			hBorderMinimize = hBorderMaximize -
+				0.03L * width;
+
+			CreateMinimizeButton(hwnd, hBorderMinimize, 0L, 0.03L * width, vBorderControlsArea);
+			CreateMaximizeButton(hwnd, hBorderMaximize, 0L, 0.03L * width, vBorderControlsArea);
+			CreateDestroyWButton(hwnd, hBorderDestroyW, 0L, 0.03L * width, vBorderControlsArea);
+
+			CreateBackButton(
+				hwnd,
+				hBorderBackButton,
+				vBorderControls,
+				0.02L * width,
+				0.8L * (vBorderExtrasArea - vBorderControlsArea)
+			);
+
+			CreateForwardButton(
+				hwnd,
+				hBorderForwardButton,
+				vBorderControls,
+				0.02L * width,
+				0.8L * (vBorderExtrasArea - vBorderControlsArea)
+			);
+
+			CreateRefreshButton(
+				hwnd,
+				hBorderRefreshButton,
+				vBorderControls,
+				0.02L * width,
+				0.8L * (vBorderExtrasArea - vBorderControlsArea)
+			);
+			CreateUrlBar(
+				hwnd,
+				hBorderUrlBar,
+				vBorderControls,
+				0.85 * width,
+				0.8L * (vBorderExtrasArea - vBorderControlsArea)
+			);
+
+			CreateSearchButton(
+				hwnd,
+				hBorderSearchButton,
+				vBorderControls,
+				0.05L * width,
+				0.8L * (vBorderExtrasArea - vBorderControlsArea)
+			);
+
+			pageHistory.push_back("light://newtab");
 
 			curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
 
@@ -286,15 +492,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			return 0;
 		}
-		case WM_PAINT: {
-			hdc = BeginPaint(hwnd, &ps);
+		case WM_PAINT:
+		{
+			hdc = BeginPaint(window, &ps);
 
 			FillRect(hdc, &ps.rcPaint, CreateSolidBrush(RGB(217, 89, 140)));
 
-			SetRect(&tabsAreaRect, 0, 0, width, vBorderA);
+			SetRect(&tabsAreaRect, 0, 0, width, vBorderControlsArea);
 			FillRect(hdc, &tabsAreaRect, CreateSolidBrush(RGB(42, 42, 42)));
 
-			SetRect(&newTab, 0.01 * width, 0, 0.08 * width, vBorderA);
+			SetRect(&newTab, 0.01 * width, 0, 0.08 * width, vBorderControlsArea);
 			FillRect(hdc, &newTab, CreateSolidBrush(RGB(26, 26, 26)));
 
 			SetTextColor(hdc, RGB(255, 255, 255));
@@ -304,52 +511,89 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			HFONT font = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
 			HFONT oldHFont = (HFONT) SelectObject(hdc, font);
 
-			if (historyDepth == 0) {
-				TextOut(hdc, 0.015 * width, 0.75 * vBorderA, L"New Tab", 7);
+			if (historyDepth == 0)
+			{
+				TextOut(hdc, 0.015 * width, 0.75 * vBorderControlsArea, L"New Tab", 7);
 			}
 
-			SetRect(&controlsAreaRect, 0, vBorderA, width, vBorderB);
+			SetRect(&controlsAreaRect, 0, vBorderControlsArea, width, vBorderExtrasArea);
 			FillRect(hdc, &controlsAreaRect, CreateSolidBrush(RGB(28, 28, 28)));
 
-			SetRect(&extrasAreaRect, 0, vBorderB, width, vBorderC);
+			SetRect(&extrasAreaRect, 0, vBorderExtrasArea, width, vBorderMainContent);
 			FillRect(hdc, &extrasAreaRect, CreateSolidBrush(RGB(31, 31, 31)));
 
-			SetRect(&mainContentRect, 0, vBorderC, width, height);
+			SetRect(&mainContentRect, 0, vBorderMainContent, width, height);
 			FillRect(hdc, &mainContentRect, CreateSolidBrush(RGB(255, 255, 255)));
 
 			EndPaint(hwnd, &ps);
 
 			return 0;
 		}
-		case WM_COMMAND: {
-			if (wParam == 831 || wParam == 312) {
-				if (wParam == 312) {
-					if (historyDepth > 0) {
+		case WM_COMMAND:
+		{
+			if (wParam == 69)
+			{
+				CloseWindow(hwnd);
+			}
+			else if (wParam == 70)
+			{
+				if (maximized)
+				{
+					ShowWindow(hwnd, SW_MINIMIZE);
+				}
+				else
+				{
+					ShowWindow(hwnd, SW_MAXIMIZE);
+				}
+
+				// @TODO - Implement repaint on resize
+
+				maximized = !maximized;
+			}
+			else if (wParam == 71)
+			{
+				DestroyWindow(hwnd);
+			}
+			else if (wParam == 312 || wParam == 831)
+			{ // Pressed either the back button or the search button
+				if (wParam == 312)
+				{ // Pressed the back button
+					if (historyDepth > 0)
+					{ // Page to go back to exists
 						println("\n----- New Message: Go back! -----");
 
-						historyDepth = historyDepth - 1; // Bug: Back button needs to be pressed twice to go back (is historyDepth being incremented twice somewhere?)
+						// @TODO - Back button needs to be pressed twice to go back (is historyDepth being incremented twice somewhere?)
+
+						println("Going from %d (%s) to %d (%s)", historyDepth, pageHistory[historyDepth], historyDepth - 1, pageHistory[historyDepth - 1]);
+
+						historyDepth = historyDepth - 1;
 
 						int targetUrlLength = pageHistory[historyDepth].length();
 
 						WCHAR targetUrl[2048];
 
-						for (int i = 0; i < targetUrlLength; i++) {
+						for (int i = 0; i < targetUrlLength; i++)
+						{
 							targetUrl[i] = pageHistory[historyDepth][i];
 						}
 
 						SetWindowTextA(urlBar, pageHistory[historyDepth].c_str());
 
-						OutputDebugStringA("Going back to '");
-						OutputDebugStringA(pageHistory[historyDepth].c_str());
-						OutputDebugStringA("'\n");
-
-					} else {
+					}
+					else
+					{ // Currently at end of browsing history for current tab
 						println("Reached end of browsing history!");
 
 						return 0;
 					}
-				} else {
+				}
+				else
+				{ // Pressed the search button
 					println("\n----- New Message: Search! -----");
+
+					
+
+					println("Going from %d (%s) to %d", historyDepth, pageHistory[historyDepth], historyDepth + 1);
 
 					historyDepth = historyDepth + 1;
 				}
@@ -364,7 +608,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				url.clear();
 
-				for (int i = 0; i < urlLength; i++) {
+				for (int i = 0; i < urlLength; i++)
+				{
 					url += tempUrl[i];
 				}
 
@@ -376,28 +621,54 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
-				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, requestData);
+				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, RequestData);
 				curl_easy_setopt(curl, CURLOPT_WRITEDATA, &pageData);
 
 				pageData.clear();
 
-				if (processResult(curl_easy_perform(curl)) != CURLE_OK) {
-					if (wParam == 312) {
+				if (ProcessResult(curl_easy_perform(curl)) != CURLE_OK)
+				{ // cURL Unsuccessful
+					if (wParam == 312)
+					{ // cURL for back button Unsuccessful
 						println("Failed to go back!");
 
 						historyDepth++;
-					} else {
+					}
+					else
+					{ // cURL for search button Unsuccessful
 						println("Failed to navigate!");
 
 						historyDepth--;
 					}
 				}
-			} else if (wParam == 690561) {
+			}
+			else if (wParam == 1662)
+			{
 				println("Refresh the page!");
 
 				pageData.clear();
 
-				processResult(curl_easy_perform(curl));
+				ProcessResult(curl_easy_perform(curl));
+			}
+
+			return 0;
+		}
+		case WM_NCHITTEST:
+		{
+			LONG x_lParam = GET_X_LPARAM(lParam);
+			LONG y_lParam = GET_Y_LPARAM(lParam);
+
+			POINT clickPoint[1];
+			clickPoint[0] = tagPOINT{ x_lParam, y_lParam };
+
+			MapWindowPoints(HWND_DESKTOP, hwnd, clickPoint, 1);
+
+			LONG x = clickPoint->x;
+			LONG y = clickPoint->y;
+			
+			if (y < vBorderControlsArea && x < hBorderMinimize)
+			{
+				return HTCAPTION;
 			}
 
 			return 0;
