@@ -72,8 +72,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\include</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\lib</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);D:\curl\builds\libcurl-vc-x86-release-static-ipv6-sspi-schannel\include</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);D:\curl\builds\libcurl-vc-x86-release-static-ipv6-sspi-schannel\lib</LibraryPath>
     <ReferencePath>$(VC_ReferencesPath_x86);$(ProjectDir)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -91,12 +91,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\curl-7.76.1\builds\libcurl-vc-x86-release-static-ipv6-sspi-winssl\include\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\curl\builds\libcurl-vc-x86-release-static-ipv6-sspi-schannel\include\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);wininet.lib;Ws2_32.lib;Crypt32.lib;Wldap32.lib;Normaliz.lib</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);wininet.lib;Ws2_32.lib;Crypt32.lib;Wldap32.lib;Normaliz.lib;D:\curl\builds\libcurl-vc-x86-release-static-ipv6-sspi-schannel\lib\libcurl_a.lib;ws2_32.lib;wldap32.lib;advapi32.lib;kernel32.lib;comdlg32.lib;crypt32.lib;normaliz.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,6 +121,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>D:\curl\builds\libcurl-vc-x86-release-static-ipv6-sspi-schannel\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,6 +145,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BrowserConfig.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Page.h" />
     <ClInclude Include="Request.h" />
@@ -153,9 +155,11 @@
     <ClInclude Include="Win32Playground.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BrowserConfig.cpp" />
     <ClCompile Include="Page.cpp" />
     <ClCompile Include="Request.cpp" />
     <ClCompile Include="Tab.cpp" />
+    <ClCompile Include="Test.cpp" />
     <ClCompile Include="Win32Playground.cpp" />
   </ItemGroup>
   <ItemGroup>

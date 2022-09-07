@@ -1,9 +1,12 @@
 ﻿#include "windows.h"
 #include "Richedit.h"
 #include "WindowsX.h"
-#include "curl/curl.h"
+#include "uxtheme.h"
+#include "dwmapi.h"
+#include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory>
 #include <string>
 #include <vector>
 #include <regex>
@@ -46,19 +49,21 @@ RECT controlsAreaRect;
 RECT extrasAreaRect;
 RECT mainContentRect;
 
-HWND window;
+std::shared_ptr<HWND> window;
 
-HWND minimizeButton;
-HWND maximizeButton;
-HWND destroyWButton;
-HWND backButton;
-HWND forwardButton;
-HWND refreshButton;
-HWND urlBar;
-HWND searchButton;
-HWND pageContent;
+std::shared_ptr<HWND> minimizeButton;
+std::shared_ptr<HWND> maximizeButton;
+std::shared_ptr<HWND> destroyWButton;
+std::shared_ptr<HWND> backButton;
+std::shared_ptr<HWND> forwardButton;
+std::shared_ptr<HWND> refreshButton;
+std::shared_ptr<HWND> urlBar;
+std::shared_ptr<HWND> searchButton;
+std::shared_ptr<HWND> pageContent;
 
-std::vector<HWND> children { backButton, refreshButton, urlBar, searchButton, pageContent };
+std::vector<std::shared_ptr<HWND>> windows { window };
+
+std::vector<std::shared_ptr<HWND>> children { backButton, refreshButton, urlBar, searchButton, pageContent };
 
 CURL* curl = curl_easy_init();
 
@@ -112,14 +117,14 @@ void println(const char* string, Args ...args)
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-HWND CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateBackButton(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height);
-HWND CreateContent(HWND hwndOwner);
+std::shared_ptr<HWND> CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateBackButton(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height);
+std::shared_ptr<HWND> CreateContent(HWND hwndOwner);
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
@@ -134,22 +139,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 	RegisterClass(&wc);
 
-	window = CreateWindow(
+	window = std::make_shared<HWND>(CreateWindow(
 		CLASS_NAME,
 		L"Light",
 		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		CW_USEDEFAULT, CW_USEDEFAULT,
 		NULL, NULL, hInstance, NULL
-	);
+	));
 
 	if (window == NULL)
 	{
 		return 0;
 	}
 
-	SetWindowLong(window, GWL_STYLE, 0);
+	SetWindowLong(*window, GWL_STYLE, 0);
 
-	ShowWindow(window, nCmdShow);
+	ShowWindow(*window, nCmdShow);
 	
 	MSG msg = { };
 	while (GetMessage(&msg, NULL, 0, 0))
@@ -161,7 +167,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	return 0;
 }
 
-HWND CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light Minimize Button";
 
@@ -171,18 +177,18 @@ HWND CreateMinimizeButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	minimizeButton = CreateWindow(
+	minimizeButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L"-",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT | BS_CENTER,
 		x, y, width, height,
 		hwndOwner, (HMENU) 69, NULL, NULL
-	);
+	));
 
 	return minimizeButton;
 }
 
-HWND CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light Maximize Button";
 
@@ -192,18 +198,18 @@ HWND CreateMaximizeButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	maximizeButton = CreateWindow(
+	maximizeButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L"☐",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT | BS_CENTER,
 		x, y, width, height,
 		hwndOwner, (HMENU) 70, NULL, NULL
-	);
+	));
 
 	return maximizeButton;
 }
 
-HWND CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light DestroyW Button";
 
@@ -213,18 +219,18 @@ HWND CreateDestroyWButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	destroyWButton = CreateWindow(
+	destroyWButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L"X",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT | BS_CENTER,
 		x, y, width, height,
 		hwndOwner, (HMENU) 71, NULL, NULL
-	);
+	));
 
 	return destroyWButton;
 }
 
-HWND CreateBackButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateBackButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light Page Back Button";
 
@@ -234,18 +240,18 @@ HWND CreateBackButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	backButton = CreateWindow(
+	backButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L"<",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
 		x, y, width, height,
 		hwndOwner, (HMENU) 312, NULL, NULL
-	);
+	));
 
 	return backButton;
 }
 
-HWND CreateForwardButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateForwardButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light Page Forward Button";
 
@@ -255,18 +261,18 @@ HWND CreateForwardButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	forwardButton = CreateWindow(
+	forwardButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L">",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
 		x, y, width, height,
 		hwndOwner, (HMENU) 624, NULL, NULL
-	);
+	));
 
 	return forwardButton;
 }
 
-HWND CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light Page Refresh Button";
 
@@ -276,18 +282,18 @@ HWND CreateRefreshButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	refreshButton = CreateWindow(
+	refreshButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L"↺",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
 		x, y, width, height,
 		hwndOwner, (HMENU) 1662, NULL, NULL
-	);
+	));
 
 	return refreshButton;
 }
 
-HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height)
 {
 	LoadLibrary(TEXT("Msftedit.dll"));
 
@@ -295,23 +301,25 @@ HWND CreateUrlBar(HWND hwndOwner, int x, int y, int width, int height)
 
 	WNDCLASS wc = { };
 
+	wc.lpfnWndProc = WindowProc;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpszClassName = CLASS_NAME;
 
 	RegisterClass(&wc);
 
-	urlBar = CreateWindowEx(
+	urlBar = std::make_shared<HWND> (CreateWindowEx(
 		0,
 		MSFTEDIT_CLASS,
 		L"Type a URL",
 		ES_MULTILINE | WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
 		x, y, width, height,
 		hwndOwner, (HMENU)102, NULL, NULL
-	);
+	));
 
 	return urlBar;
 }
 
-HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height)
+std::shared_ptr<HWND> CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height)
 {
 	const wchar_t CLASS_NAME[] = L"Light URL Submit Button";
 
@@ -321,34 +329,36 @@ HWND CreateSearchButton(HWND hwndOwner, int x, int y, int width, int height)
 
 	RegisterClass(&wc);
 
-	searchButton = CreateWindow(
+	searchButton = std::make_shared<HWND> (CreateWindow(
 		L"BUTTON",
 		L"GO",
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | BS_FLAT,
 		x, y, width, height,
 		hwndOwner, (HMENU) 831, NULL, NULL
-	);
+	));
 
 	return searchButton;
 }
 
-HWND CreateContent(HWND hwndOwner)
+std::shared_ptr<HWND> CreateContent(HWND hwndOwner)
 {
 	const wchar_t CLASS_NAME[] = L"Light Page Content";
 
 	WNDCLASS wc = { };
 
 	wc.lpszClassName = CLASS_NAME;
+	wc.lpfnWndProc = WindowProc;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
 
 	RegisterClass(&wc);
 
-	pageContent = CreateWindow( 
+	pageContent = std::make_shared<HWND> (CreateWindow(
 		L"STATIC",
 		L"Enter a URL into the address bar and hit go to begin exploring the web!",
 		WS_VISIBLE | WS_CHILD | SS_LEFT,
 		width * 0.005L, vBorderMainContent + height * 0.025L * (historyDepth + 1L), width * 0.995L, height * 0.995L,
 		hwndOwner, (HMENU) 519, NULL, NULL
-	);
+	));
 
 	return pageContent;
 }
@@ -378,10 +388,10 @@ CURLcode ProcessResult(CURLcode result)
 
 		if (historyDepth == 1)
 		{
-			CreateContent(window);
+			CreateContent(*window);
 		}
 
-		SetWindowTextA(pageContent, pageData.c_str());
+		SetWindowTextA(*pageContent, pageData.c_str());
 	}
 	else
 	{
@@ -396,6 +406,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
+		case WM_SIZE:
+			RECT rc;
+			GetClientRect(hwnd, &rc);
+			InvalidateRect(hwnd, NULL, FALSE);
+
+			return 0;
 		case WM_DESTROY:
 		{
 			PostQuitMessage(0);
@@ -406,12 +422,30 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_CREATE:
 		{
+			windows.push_back(std::make_shared<HWND>(hwnd));
+
 			hdc = BeginPaint(hwnd, &ps);
 
 			GetWindowRect(hwnd, &cRect);
+			
+			SetWindowPos(
+				hwnd,
+				NULL,
+				cRect.left, cRect.top,
+				cRect.right - cRect.left, cRect.bottom - cRect.top,
+				SWP_FRAMECHANGED
+			);
+
+			SetMapMode(hdc, MM_ANISOTROPIC);
+			SetWindowExtEx(hdc, 100, 100, NULL);
+			SetViewportExtEx(hdc, cRect.right, cRect.bottom, NULL);
 
 			width = cRect.right - cRect.left;
 			height = cRect.bottom - cRect.top;
+
+			// @TODO - Find better way to calculate borders
+			// Maybe give each a "weight" number along each axis,
+			// then divide each by the total weight along that axis
 
 			vBorderControlsArea = 0 +
 				0.03L * height;
@@ -494,7 +528,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		case WM_PAINT:
 		{
-			hdc = BeginPaint(window, &ps);
+			hdc = BeginPaint(*window, &ps);
 
 			FillRect(hdc, &ps.rcPaint, CreateSolidBrush(RGB(217, 89, 140)));
 
@@ -537,6 +571,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 			else if (wParam == 70)
 			{
+				InvalidateRect(hwnd, NULL, TRUE);
+
 				if (maximized)
 				{
 					ShowWindow(hwnd, SW_MINIMIZE);
@@ -545,6 +581,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				{
 					ShowWindow(hwnd, SW_MAXIMIZE);
 				}
+
+				InvalidateRect(hwnd, NULL, TRUE);
+
+				UpdateWindow(hwnd);
+
+				RedrawWindow(hwnd, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INTERNALPAINT | RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+
+				SendMessage(hwnd, WM_PAINT, 0, 0);
+				SendMessage(hwnd, WM_ERASEBKGND, 0, 0);
 
 				// @TODO - Implement repaint on resize
 
@@ -577,7 +622,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 							targetUrl[i] = pageHistory[historyDepth][i];
 						}
 
-						SetWindowTextA(urlBar, pageHistory[historyDepth].c_str());
+						SetWindowTextA(*urlBar, pageHistory[historyDepth].c_str());
 
 					}
 					else
@@ -600,7 +645,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				WCHAR tempUrl[2048];
 
-				int urlLength = GetWindowTextW(urlBar, (LPWSTR) tempUrl, 2048) + 1;
+				int urlLength = GetWindowTextW(*urlBar, (LPWSTR) tempUrl, 2048) + 1;
 
 				OutputDebugStringW(L"Url: '");
 				OutputDebugStringW(tempUrl);
